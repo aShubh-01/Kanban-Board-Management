@@ -28,6 +28,11 @@ public class AttachmentService {
     @Value("${aws.bucketName}")
     private String bucketName;
 
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        System.out.println("AttachmentService initialized with bucket: [" + bucketName + "]");
+    }
+
     public Attachment uploadFile(String taskId, MultipartFile file, String userId) throws IOException {
         String fileId = UUID.randomUUID().toString();
         String fileKey = "tasks/" + taskId + "/" + fileId + "_" + file.getOriginalFilename();
@@ -59,8 +64,11 @@ public class AttachmentService {
         long expTimeMillis = expiration.getTime() + (1000 * 60 * 60); // 1 hour
         expiration.setTime(expTimeMillis);
 
+        System.out.println("Generating URL for bucket: [" + bucketName + "] and key: [" + fileKey + "]");
         URL url = s3Client.generatePresignedUrl(bucketName, fileKey, expiration, HttpMethod.GET);
-        return url.toString();
+        String finalUrl = url.toString();
+        System.out.println("Generated URL: " + finalUrl);
+        return finalUrl;
     }
 
     public void deleteAttachment(String attachmentId) {

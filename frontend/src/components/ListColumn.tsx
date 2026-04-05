@@ -11,12 +11,16 @@ interface Props {
   tasks: Task[];
   boardMembers: any[];
   onAddTask: (listId: string, title: string) => void;
+  onUpdateTitle: (newTitle: string) => void;
+  onDelete: () => void;
   onTaskClick: (task: Task) => void;
 }
 
-const ListColumn: React.FC<Props> = ({ list, tasks, boardMembers, onAddTask, onTaskClick }) => {
+const ListColumn: React.FC<Props> = ({ list, tasks, boardMembers, onAddTask, onUpdateTitle, onDelete, onTaskClick }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [taskTitle, setTaskTitle] = useState('');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(list.title);
 
   const {
     attributes,
@@ -41,6 +45,13 @@ const ListColumn: React.FC<Props> = ({ list, tasks, boardMembers, onAddTask, onT
     }
   };
 
+  const handleTitleSubmit = () => {
+    if (editedTitle.trim() && editedTitle !== list.title) {
+        onUpdateTitle(editedTitle);
+    }
+    setIsEditingTitle(false);
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -50,26 +61,55 @@ const ListColumn: React.FC<Props> = ({ list, tasks, boardMembers, onAddTask, onT
         isDragging ? "opacity-30 border-primary-300 ring-2 ring-primary-100" : ""
       )}
     >
-      <div className="p-4 flex items-center justify-between cursor-default">
-        <div className="flex items-center gap-3" {...attributes} {...listeners}>
-            <div className="w-2 h-2 rounded-full bg-primary-500" />
-            <h3 className="font-bold text-slate-800 text-base tracking-tight flex items-center gap-2">
-                {list.title}
-                <span className="ml-1 text-slate-400 font-normal text-xs bg-slate-200/50 px-2 py-0.5 rounded-full">
-                    {tasks.length}
-                </span>
-            </h3>
+      <div className="p-4 flex items-center justify-between cursor-default shrink-0">
+        <div className="flex items-center gap-3 overflow-hidden flex-1" {...attributes} {...listeners}>
+            <div className="w-2 h-2 rounded-full bg-primary-500 shrink-0" />
+            
+            {isEditingTitle ? (
+                <input
+                    autoFocus
+                    className="font-bold text-slate-800 text-base bg-white/50 outline-none px-1 rounded flex-1 min-w-0"
+                    value={editedTitle}
+                    onChange={(e) => setEditedTitle(e.target.value)}
+                    onBlur={handleTitleSubmit}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleTitleSubmit();
+                        if (e.key === 'Escape') {
+                            setEditedTitle(list.title);
+                            setIsEditingTitle(false);
+                        }
+                    }}
+                />
+            ) : (
+                <h3 
+                    className="font-bold text-slate-800 text-base tracking-tight truncate flex-1 cursor-pointer hover:bg-slate-200/50 px-1 rounded"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditingTitle(true);
+                    }}
+                >
+                    {list.title}
+                </h3>
+            )}
+            
+            <span className="shrink-0 text-slate-400 font-normal text-[10px] bg-white/50 px-2 py-0.5 rounded-full border border-slate-200/50 shadow-sm">
+                {tasks.length}
+            </span>
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
             <button 
                 onClick={() => setIsAdding(true)}
                 className="p-1.5 hover:bg-primary-100 rounded-lg text-slate-400 hover:text-primary-600 transition-all shadow-sm bg-white border border-slate-100"
-                title="Add task to this list"
+                title="Add task"
             >
                 <Plus size={16} />
             </button>
-            <button className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-600 transition-all">
-                <MoreHorizontal size={16} />
+            <button 
+                onClick={onDelete}
+                className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 transition-all bg-white border border-slate-100 shadow-sm"
+                title="Delete list"
+            >
+                <X size={16} />
             </button>
         </div>
       </div>

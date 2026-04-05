@@ -63,6 +63,15 @@ const BoardView: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [newListTitle, setNewListTitle] = useState('');
   const [showAddList, setShowAddList] = useState(false);
+  const [addingList, setAddingList] = useState(false);
+  const [isEditingBoard, setIsEditingBoard] = useState(false);
+  const [editedBoardTitle, setEditedBoardTitle] = useState('');
+  
+  // Filters
+  const [filterText, setFilterText] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('ALL');
+  const [sortBy, setSortBy] = useState<'NONE' | 'PRIORITY' | 'DATE'>('NONE');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -260,8 +269,9 @@ const BoardView: React.FC = () => {
 
   const handleAddList = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newListTitle.trim()) return;
+    if (!newListTitle.trim() || addingList) return;
     try {
+      setAddingList(true);
       const response = await api.post('/lists', { 
         boardId: id, 
         title: newListTitle, 
@@ -270,8 +280,79 @@ const BoardView: React.FC = () => {
       dispatch(addList({ ...response.data, tasks: [] }));
       setNewListTitle('');
       setShowAddList(false);
-    } catch (err) {}
+    } catch (err) {
+      console.error('Failed to add list', err);
+    } finally {
+      setAddingList(false);
+    }
   };
+
+  const handleUpdateBoardTitle = async () => {
+    if (!editedBoardTitle.trim() || editedBoardTitle === currentBoard.title) {
+        setIsEditingBoard(false);
+        return;
+    }
+    try {
+        const response = await api.put(`/boards/${id}`, { ...currentBoard, title: editedBoardTitle });
+        dispatch(setCurrentBoard(response.data));
+        setIsEditingBoard(false);
+    } catch (err) {
+        console.error('Failed to update board title', err);
+    }
+  };
+
+  const handleDeleteBoard = async () => {
+    if (!window.confirm('Are you sure you want to delete this entire board? This action cannot be undone.')) return;
+    try {
+        await api.delete(`/boards/${id}`);
+        navigate('/');
+    } catch (err) {
+        console.error('Failed to delete board', err);
+    }
+  };
+
+  const handleUpdateListTitle = async (listId: string, newTitle: string) => {
+    const list = lists.find(l => l.id === listId);
+    if (!list || list.title === newTitle) return;
+    try {
+        const response = await api.put(`/lists/${listId}`, { ...list, title: newTitle });
+        dispatch(updateList(response.data));
+    } catch (err) {
+        console.error('Failed to update list title', err);
+    }
+  };
+
+  const handleDeleteListImpl = async (listId: string) => {
+    if (!window.confirm('Delete this list and all its tasks?')) return;
+    try {
+        await api.delete(`/lists/${listId}`);
+        dispatch(deleteList(listId));
+    } catch (err) {
+        console.error('Failed to delete list', err);
+    }
+  };
+
+  const filteredLists = lists.map(list => {
+    let tasks = (list.tasks || []).filter(task => {
+        const query = filterText.toLowerCase();
+        const matchesText = 
+            task.title.toLowerCase().includes(query) || 
+            (task.description && task.description.toLowerCase().includes(query));
+        
+        const matchesPriority = priorityFilter === 'ALL' || task.priority === priorityFilter;
+        const matchesAssignee = assigneeFilter === 'ALL' || task.assigneeIds.includes(assigneeFilter);
+        return matchesText && matchesPriority && matchesAssignee;
+    });
+
+    if (sortBy === 'PRIORITY') {
+        const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+        tasks = [...tasks].sort((a, b) => priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder]);
+    } else if (sortBy === 'DATE') {
+        tasks = [...tasks].sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+    }
+
+    return { ...list, tasks };
+  });
 
   if (loading || !currentBoard) {
     return (
@@ -290,22 +371,90 @@ const BoardView: React.FC = () => {
             <button onClick={() => navigate('/')} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-all">
                 <ArrowLeft size={20} />
             </button>
-            <div>
+            <div className="flex flex-col">
                 <div className="flex items-center gap-3">
-                    <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">{currentBoard.title}</h1>
+                    {isEditingBoard ? (
+                        <input
+                            autoFocus
+                            type="text"
+                            className="text-xl font-extrabold text-slate-900 bg-slate-50 border-b-2 border-primary-500 focus:outline-none px-1 h-8 animate-fade-in"
+                            value={editedBoardTitle}
+                            onChange={(e) => setEditedBoardTitle(e.target.value)}
+                            onBlur={handleUpdateBoardTitle}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleUpdateBoardTitle();
+                                if (e.key === 'Escape') setIsEditingBoard(false);
+                            }}
+                        />
+                    ) : (
+                        <h1 
+                            className="text-xl font-extrabold text-slate-900 tracking-tight hover:bg-slate-100 px-1 rounded cursor-pointer transition-colors"
+                            onClick={() => {
+                                if (currentBoard) {
+                                    setEditedBoardTitle(currentBoard.title);
+                                    setIsEditingBoard(true);
+                                }
+                            }}
+                        >
+                            {currentBoard?.title}
+                        </h1>
+                    )}
                 </div>
                 <p className="text-xs text-slate-400 font-medium mt-0.5 flex items-center gap-2">
-                    <span className="flex items-center gap-1"><Calendar size={12} /> Last edited 2h ago</span>
+                    <span className="flex items-center gap-1"><Calendar size={12} /> Last edited recently</span>
                     <span>•</span>
-                    <span className="flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 uppercase tracking-widest text-[9px]">Private Board</span>
+                    <button 
+                        onClick={handleDeleteBoard}
+                        className="text-red-400 hover:text-red-600 transition-colors"
+                    >
+                        Delete Board
+                    </button>
                 </p>
             </div>
         </div>
 
-        <div className="flex items-center gap-5">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm">
-                <Search size={16} className="text-slate-400" />
-                <input type="text" placeholder="Filter tasks..." className="bg-transparent text-sm focus:outline-none w-32 md:w-48" />
+        <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100/80 border border-slate-200/50 shadow-inner group focus-within:bg-white focus-within:ring-2 ring-primary-100 transition-all">
+                <Search size={18} className="text-slate-400 group-focus-within:text-primary-600 transition-colors" />
+                <input 
+                    type="text" 
+                    placeholder="Search tasks, descriptions..." 
+                    className="bg-transparent text-sm font-medium focus:outline-none w-48 md:w-64 placeholder:text-slate-400" 
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
+                />
+            </div>
+
+            <div className="flex items-center gap-1 overflow-hidden rounded-full border border-slate-200 shadow-sm h-9">
+                <select 
+                    className="text-[11px] font-bold bg-white text-slate-600 outline-none px-2 h-full border-r border-slate-100 hover:bg-slate-50 transition-colors"
+                    value={priorityFilter}
+                    onChange={(e) => setPriorityFilter(e.target.value)}
+                >
+                    <option value="ALL">ALL PRIORITY</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="LOW">LOW</option>
+                </select>
+                <select 
+                    className="text-[11px] font-bold bg-white text-slate-600 outline-none px-2 h-full border-r border-slate-100 hover:bg-slate-50 transition-colors max-w-[120px]"
+                    value={assigneeFilter}
+                    onChange={(e) => setAssigneeFilter(e.target.value)}
+                >
+                    <option value="ALL">ALL MEMBERS</option>
+                    {boardMembers.map(m => (
+                        <option key={m.id} value={m.id}>{m.name.toUpperCase()}</option>
+                    ))}
+                </select>
+                <select 
+                    className="text-[11px] font-bold bg-white text-slate-600 outline-none px-2 h-full hover:bg-slate-50 transition-colors"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                >
+                    <option value="NONE">NO SORT</option>
+                    <option value="PRIORITY">BY PRIORITY</option>
+                    <option value="DATE">BY DATE</option>
+                </select>
             </div>
 
             <div className="flex items-center -space-x-2">
@@ -364,14 +513,16 @@ const BoardView: React.FC = () => {
           onDragEnd={handleDragEnd}
         >
           <div className="flex items-start gap-6 h-full min-w-max pb-4">
-            <SortableContext items={lists.map(l => l.id)} strategy={horizontalListSortingStrategy}>
-              {lists.map(list => (
+            <SortableContext items={filteredLists.map(l => l.id)} strategy={horizontalListSortingStrategy}>
+              {filteredLists.map(list => (
                 <ListColumn 
                   key={list.id} 
                   list={list} 
                   tasks={list.tasks || []} 
                   boardMembers={boardMembers}
                   onAddTask={handleAddTask}
+                  onUpdateTitle={(newTitle) => handleUpdateListTitle(list.id, newTitle)}
+                  onDelete={() => handleDeleteListImpl(list.id)}
                   onTaskClick={(task) => setSelectedTask(task)}
                 />
               ))}
@@ -427,6 +578,8 @@ const BoardView: React.FC = () => {
                   tasks={activeList!.tasks || []} 
                   boardMembers={boardMembers}
                   onAddTask={() => {}} 
+                  onUpdateTitle={() => {}}
+                  onDelete={() => {}}
                   onTaskClick={() => {}} 
                 />
               ) : (
@@ -450,7 +603,7 @@ const BoardView: React.FC = () => {
   );
 
   function isActiveList() {
-    return activeId && lists.some(l => l.id === activeId);
+    return activeId && filteredLists.some(l => l.id === activeId);
   }
 };
 

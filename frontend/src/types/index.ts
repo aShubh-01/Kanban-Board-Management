@@ -27,6 +27,7 @@ export interface Task {
   assigneeIds: string[];
   checklist: ChecklistItem[];
   position: number;
+  createdAt?: string;
 }
 
 export interface BoardList {
@@ -35,6 +36,7 @@ export interface BoardList {
   title: string;
   position: number;
   tasks?: Task[];
+  createdAt?: string;
 }
 
 export interface Board {

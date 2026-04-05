@@ -23,12 +23,23 @@ public class AttachmentController {
     private AttachmentService attachmentService;
 
     @PostMapping
-    public ResponseEntity<Attachment> uploadAttachment(
+    public ResponseEntity<Map<String, Object>> uploadAttachment(
             @PathVariable String taskId,
             @RequestParam("file") MultipartFile file) throws IOException {
         
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(attachmentService.uploadFile(taskId, file, userId));
+        Attachment att = attachmentService.uploadFile(taskId, file, userId);
+        
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", att.getId());
+        map.put("fileName", att.getFileName());
+        map.put("contentType", att.getContentType());
+        map.put("size", att.getSize());
+        map.put("url", attachmentService.generatePresignedUrl(att.getFileKey()));
+        map.put("createdAt", att.getCreatedAt());
+        map.put("uploadedBy", att.getUploadedBy());
+        
+        return ResponseEntity.ok(map);
     }
 
     @GetMapping
