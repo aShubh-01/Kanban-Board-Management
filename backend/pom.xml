@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.kanban</groupId>
-	<artifactId>kanban-backend</artifactId>
+	<artifactId>worklane-backend</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>kanban-backend</name>
-	<description/>
+	<name>Worklane Backend</name>
+	<description>Enterprise Team Workspace API</description>
 	<url/>
 	<licenses>
 		<license/>

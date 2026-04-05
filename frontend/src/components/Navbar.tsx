@@ -24,7 +24,7 @@ const Navbar: React.FC = () => {
         <div className="bg-primary-600 p-1.5 rounded-lg text-white group-hover:rotate-12 transition-transform duration-300">
           <Layout size={20} />
         </div>
-        <span className="font-bold text-xl tracking-tight text-slate-800">Antigravity<span className="text-primary-600">Kanban</span></span>
+        <span className="font-bold text-xl tracking-tight text-slate-800">Work<span className="text-primary-600">lane</span></span>
       </Link>
 
       <div className="flex items-center gap-6">

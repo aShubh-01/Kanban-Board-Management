@@ -1,6 +1,6 @@
-# Antigravity Kanban - Full-Stack Team Work Management
+# Worklane - Enterprise Team Workspace
 
-A modern, high-performance Kanban Board application inspired by Trello, built with React, Spring Boot, and MongoDB.
+A premium, high-performance project management workspace built for modern teams.
 
 ## Features
 
