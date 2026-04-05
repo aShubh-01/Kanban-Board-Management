@@ -288,7 +288,7 @@ const BoardView: React.FC = () => {
   };
 
   const handleUpdateBoardTitle = async () => {
-    if (!editedBoardTitle.trim() || editedBoardTitle === currentBoard.title) {
+    if (!currentBoard || !editedBoardTitle.trim() || editedBoardTitle === currentBoard.title) {
         setIsEditingBoard(false);
         return;
     }
